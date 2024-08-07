@@ -3,7 +3,9 @@ package bitbucket
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
+	"net/http"
 	nurl "net/url"
 	"os"
 	"path"
@@ -55,6 +57,7 @@ func (b *Bitbucket) Open(ctx context.Context, url string) (source.Driver, error)
 	}
 
 	cl := bitbucket.NewBasicAuth(u.User.Username(), password)
+	cl.HttpClient = &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 
 	cfg := &Config{}
 	// set owner, repo and path in repo
