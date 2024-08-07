@@ -7,14 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	st "github.com/golang-migrate/migrate/v4/source/testing"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test(t *testing.T) {
-	s3Client := fakeS3{
+func TestAWSS3Source(t *testing.T) {
+	s3Client := &fakeS3{
 		bucket: "some-bucket",
 		objects: map[string]string{
 			"staging/migrations/1_foobar.up.sql":          "1 up",
@@ -31,7 +32,7 @@ func Test(t *testing.T) {
 			"prod/migrations/0-random-stuff/whatever.txt": "",
 		},
 	}
-	driver, err := WithInstance(context.Background(), &s3Client, &Config{
+	driver, err := WithInstance(context.Background(), s3Client, &Config{
 		Bucket: "some-bucket",
 		Prefix: "prod/migrations/",
 	})
@@ -90,37 +91,36 @@ func TestParseURI(t *testing.T) {
 }
 
 type fakeS3 struct {
-	s3.S3
 	bucket  string
 	objects map[string]string
 }
 
-func (s *fakeS3) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
-	bucket := aws.StringValue(input.Bucket)
+func (s *fakeS3) ListObjectsV2(ctx context.Context, input *s3.ListObjectsV2Input, opts ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
+	bucket := aws.ToString(input.Bucket)
 	if bucket != s.bucket {
 		return nil, errors.New("bucket not found")
 	}
-	prefix := aws.StringValue(input.Prefix)
-	delimiter := aws.StringValue(input.Delimiter)
-	var output s3.ListObjectsOutput
+	prefix := aws.ToString(input.Prefix)
+	delimiter := aws.ToString(input.Delimiter)
+	output := &s3.ListObjectsV2Output{}
 	for name := range s.objects {
 		if strings.HasPrefix(name, prefix) {
 			if delimiter == "" || !strings.Contains(strings.Replace(name, prefix, "", 1), delimiter) {
-				output.Contents = append(output.Contents, &s3.Object{
+				output.Contents = append(output.Contents, s3types.Object{
 					Key: aws.String(name),
 				})
 			}
 		}
 	}
-	return &output, nil
+	return output, nil
 }
 
-func (s *fakeS3) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
-	bucket := aws.StringValue(input.Bucket)
+func (s *fakeS3) GetObject(ctx context.Context, input *s3.GetObjectInput, opts ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+	bucket := aws.ToString(input.Bucket)
 	if bucket != s.bucket {
 		return nil, errors.New("bucket not found")
 	}
-	if data, ok := s.objects[aws.StringValue(input.Key)]; ok {
+	if data, ok := s.objects[aws.ToString(input.Key)]; ok {
 		body := io.NopCloser(strings.NewReader(data))
 		return &s3.GetObjectOutput{Body: body}, nil
 	}
