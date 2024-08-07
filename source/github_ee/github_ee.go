@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"net/http"
 	nurl "net/url"
 	"strconv"
@@ -74,12 +75,15 @@ func (g *GithubEE) Open(ctx context.Context, url string) (source.Driver, error) 
 }
 
 func (g *GithubEE) createGithubClient(host, username, password string, verifyTLS bool) (*github.Client, error) {
-	tr := &github.BasicAuthTransport{
-		Username: username,
-		Password: password,
-		Transport: &http.Transport{
+	instrumentedTransport := otelhttp.NewTransport(
+		&http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: !verifyTLS},
-		},
+		})
+
+	tr := &github.BasicAuthTransport{
+		Username:  username,
+		Password:  password,
+		Transport: instrumentedTransport,
 	}
 
 	apiHost := fmt.Sprintf("https://%s/api/v3", host)

@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	"net/http"
 	nurl "net/url"
@@ -59,11 +60,11 @@ func (g *Github) Open(ctx context.Context, url string) (source.Driver, error) {
 			&oauth2.Token{AccessToken: password},
 		)
 		client = oauth2.NewClient(context.Background(), ts)
-
 	}
+	instrumentedClient := &http.Client{Transport: otelhttp.NewTransport(client.Transport)}
 
 	gn := &Github{
-		client:     github.NewClient(client),
+		client:     github.NewClient(instrumentedClient),
 		migrations: source.NewMigrations(),
 		options:    &github.RepositoryContentGetOptions{Ref: u.Fragment},
 	}

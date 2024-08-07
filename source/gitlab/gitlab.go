@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	"net/http"
 	nurl "net/url"
@@ -58,8 +59,10 @@ func (g *Gitlab) Open(ctx context.Context, url string) (source.Driver, error) {
 		return nil, ErrNoAccessToken
 	}
 
+	httpClient := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+
 	gn := &Gitlab{
-		client:     gitlab.NewClient(nil, password),
+		client:     gitlab.NewClient(httpClient, password),
 		url:        url,
 		migrations: source.NewMigrations(),
 	}
