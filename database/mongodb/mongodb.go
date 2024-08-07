@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo"
 	"io"
 	"net/url"
 	"os"
@@ -157,7 +158,10 @@ func (m *Mongo) Open(ctx context.Context, dsn string) (database.Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dsn))
+	clientOptions := options.Client()
+	clientOptions.Monitor = otelmongo.NewMonitor()
+	clientOptions.ApplyURI(dsn)
+	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		return nil, err
 	}
