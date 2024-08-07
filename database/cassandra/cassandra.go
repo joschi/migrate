@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gocql/gocql/otelgocql"
 	"io"
 	nurl "net/url"
 	"strconv"
@@ -173,7 +174,7 @@ func (c *Cassandra) Open(ctx context.Context, url string) (database.Driver, erro
 		}
 	}
 
-	session, err := cluster.CreateSession()
+	session, err := otelgocql.NewSessionWithTracing(context.Background(), cluster)
 	if err != nil {
 		return nil, err
 	}
