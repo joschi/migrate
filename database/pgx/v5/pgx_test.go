@@ -43,6 +43,7 @@ var (
 		{ImageName: "postgres:13", Options: opts},
 		{ImageName: "postgres:14", Options: opts},
 		{ImageName: "postgres:15", Options: opts},
+		{ImageName: "postgres:16", Options: opts},
 	}
 )
 
