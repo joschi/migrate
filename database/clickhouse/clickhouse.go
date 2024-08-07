@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	"net/url"
 	"strconv"
@@ -75,7 +77,14 @@ func (ch *ClickHouse) Open(ctx context.Context, dsn string) (database.Driver, er
 	}
 	q := migrate.FilterCustomQuery(purl)
 	q.Scheme = "tcp"
-	conn, err := sql.Open("clickhouse", q.String())
+	conn, err := otelsql.Open("clickhouse", q.String(),
+		otelsql.WithAttributes(semconv.DBSystemClickhouse))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(conn,
+		otelsql.WithAttributes(semconv.DBSystemClickhouse))
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"strconv"
@@ -99,7 +101,14 @@ func (m *Sqlite) Open(ctx context.Context, url string) (database.Driver, error) 
 		return nil, err
 	}
 	dbfile := strings.Replace(migrate.FilterCustomQuery(purl).String(), "sqlite3://", "", 1)
-	db, err := sql.Open("sqlite3", dbfile)
+	db, err := otelsql.Open("sqlite3", dbfile,
+		otelsql.WithAttributes(semconv.DBSystemSqlite))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemSqlite))
 	if err != nil {
 		return nil, err
 	}

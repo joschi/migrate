@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"strconv"
@@ -157,13 +159,20 @@ func (ss *SQLServer) Open(ctx context.Context, url string) (database.Driver, err
 			return nil, err
 		}
 
-		db = sql.OpenDB(connector)
+		db = otelsql.OpenDB(connector, otelsql.WithAttributes(semconv.DBSystemMSSQL))
 
 	} else {
-		db, err = sql.Open("sqlserver", filteredURL)
+		db, err = otelsql.Open("sqlserver", filteredURL,
+			otelsql.WithAttributes(semconv.DBSystemMSSQL))
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemMSSQL))
+	if err != nil {
+		return nil, err
 	}
 
 	migrationsTable := purl.Query().Get("x-migrations-table")

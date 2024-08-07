@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"strconv"
@@ -99,7 +101,14 @@ func (p *Redshift) Open(ctx context.Context, url string) (database.Driver, error
 	}
 	purl.Scheme = "postgres"
 
-	db, err := sql.Open("postgres", migrate.FilterCustomQuery(purl).String())
+	db, err := otelsql.Open("postgres", migrate.FilterCustomQuery(purl).String(),
+		otelsql.WithAttributes(semconv.DBSystemRedshift))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemRedshift))
 	if err != nil {
 		return nil, err
 	}
