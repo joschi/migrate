@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"strconv"
@@ -131,7 +133,14 @@ func (p *Snowflake) Open(ctx context.Context, url string) (database.Driver, erro
 		return nil, err
 	}
 
-	db, err := sql.Open("snowflake", dsn)
+	db, err := otelsql.Open("snowflake", dsn,
+		otelsql.WithAttributes(semconv.DBSystemKey.String("snowflake")))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemKey.String("snowflake")))
 	if err != nil {
 		return nil, err
 	}

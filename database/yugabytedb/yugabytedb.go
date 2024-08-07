@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	"net/url"
 	"regexp"
@@ -130,7 +132,14 @@ func (c *YugabyteDB) Open(ctx context.Context, dbURL string) (database.Driver, e
 	re := regexp.MustCompile("^(yugabyte(db)?|ysql)")
 	connectString := re.ReplaceAllString(migrate.FilterCustomQuery(purl).String(), "postgres")
 
-	db, err := sql.Open("postgres", connectString)
+	db, err := otelsql.Open("postgres", connectString,
+		otelsql.WithAttributes(semconv.DBSystemKey.String("yugabytedb")))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemKey.String("yugabytedb")))
 	if err != nil {
 		return nil, err
 	}

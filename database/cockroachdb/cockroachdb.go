@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"regexp"
@@ -106,7 +108,14 @@ func (c *CockroachDb) Open(ctx context.Context, url string) (database.Driver, er
 	re := regexp.MustCompile("^(cockroach(db)?|crdb-postgres)")
 	connectString := re.ReplaceAllString(migrate.FilterCustomQuery(purl).String(), "postgres")
 
-	db, err := sql.Open("postgres", connectString)
+	db, err := otelsql.Open("postgres", connectString,
+		otelsql.WithAttributes(semconv.DBSystemCockroachdb))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemCockroachdb))
 	if err != nil {
 		return nil, err
 	}

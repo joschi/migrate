@@ -9,6 +9,8 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"fmt"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"io"
 	nurl "net/url"
 	"os"
@@ -251,7 +253,14 @@ func (m *Mysql) Open(ctx context.Context, url string) (database.Driver, error) {
 		}
 	}
 
-	db, err := sql.Open("mysql", config.FormatDSN())
+	db, err := otelsql.Open("mysql", config.FormatDSN(),
+		otelsql.WithAttributes(semconv.DBSystemMySQL))
+	if err != nil {
+		return nil, err
+	}
+
+	err = otelsql.RegisterDBStatsMetrics(db,
+		otelsql.WithAttributes(semconv.DBSystemMySQL))
 	if err != nil {
 		return nil, err
 	}
